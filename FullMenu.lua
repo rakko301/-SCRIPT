@@ -162,14 +162,23 @@ local function createCheckbox(parent, text, position, callback, panelFrame)
 end
 
 -- =========================================================
--- ★ NEW: 速度設定ロジック
+-- ★ 速度設定ロジック (ラグ解消のために pcall を使用)
 -- =========================================================
 local function setWalkSpeed(textValue)
     local speed = tonumber(textValue)
     if speed and speed >= 16 and speed <= 200 then
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-            LocalPlayer.Character.Humanoid.WalkSpeed = speed
-            print("✅ 速度を " .. speed .. " に設定しました。")
+        local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
+        if humanoid then
+            -- pcallを使って、安全にWalkSpeedを変更
+            local success, err = pcall(function()
+                humanoid.WalkSpeed = speed
+            end)
+
+            if success then
+                print("✅ 速度を " .. speed .. " に設定しました。")
+            else
+                print("❌ 速度設定中にエラーが発生しました: " .. err)
+            end
         end
     else
         print("⚠️ 無効な速度値。16-200を入力してください。")
@@ -208,7 +217,7 @@ end)
 yOffset = yOffset + 35
 
 createCheckbox(CheatFrame, "NoClip (透明パーツの当たり判定解除)", UDim2.new(0, 5, 0, yOffset), function(state)
-    noclipEnabled = state
+    toggleNoClip(state) -- ★ ここを修正
 end)
 yOffset = yOffset + 35
 
@@ -550,15 +559,25 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- =========================================================
--- --- NoClip 実装 --- (元のコードから変更なし)
+-- --- NoClip 実装 --- (ラグ解消のための修正)
 -- =========================================================
-local function setCharacterCanCollide(state)
+local defaultCanCollide = {} -- 既存の値を保存するためのテーブル
+
+local function setCharacterCanCollide(state, parts)
     local character = LocalPlayer.Character
     if not character then return end
 
-    for _, part in pairs(character:GetChildren()) do
+    for _, part in pairs(parts or character:GetChildren()) do
         if part:IsA("BasePart") then
-            part.CanCollide = state
+            if state == false then
+                -- ONにする際は即時変更
+                defaultCanCollide[part] = part.CanCollide -- 元の値を保存
+                part.CanCollide = false
+            elseif state == true then
+                -- OFFにする際は元の値に戻す
+                part.CanCollide = defaultCanCollide[part] ~= nil and defaultCanCollide[part] or true
+                defaultCanCollide[part] = nil -- 保存した値をクリア
+            end
         end
     end
 end
@@ -566,9 +585,28 @@ end
 local function toggleNoClip(enabled)
     noclipEnabled = enabled
     if noclipEnabled then
+        -- ONは即座に実行
         setCharacterCanCollide(false)
     else
-        setCharacterCanCollide(true)
+        -- OFFはラグを避けるため、パーツを分けて処理する
+        local character = LocalPlayer.Character
+        if character then
+            local children = character:GetChildren()
+            local chunkSize = math.ceil(#children / 10) -- 10分割して処理
+            
+            for i = 1, 10 do
+                -- わずかな遅延（0.01秒）を設けて処理
+                task.delay((i - 1) * 0.01, function()
+                    local startIdx = (i - 1) * chunkSize + 1
+                    local endIdx = math.min(i * chunkSize, #children)
+                    local chunkParts = {}
+                    for j = startIdx, endIdx do
+                        table.insert(chunkParts, children[j])
+                    end
+                    setCharacterCanCollide(true, chunkParts)
+                end)
+            end
+        end
     end
 end
 
@@ -597,6 +635,3 @@ local function onBulletHit(hitPart)
         end
     end
 end
-
--- 弾丸が当たったことを検知するロジック（元のコードには具体的な実装がありませんでしたが、
--- これは通常、武器スクリプトをフックするか、RunServiceでチェックする必要があります）
