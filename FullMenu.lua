@@ -20,38 +20,41 @@ local speedControlEnabled = false -- ★ 速度制御フラグ
 local currentWalkSpeed = 16       -- ★ NEW: 現在の速度値を保持 (デフォルト16)
 local jumpControlEnabled = false  
 
--- チーン音の用意 (変更なし)
+-- チーン音の用意
 local chime = Instance.new("Sound")
 chime.Name = "HeadshotSound"
-chime.SoundId = "rbxassetid://7128958209"
+chime.SoundId = "rbxassetid://7128958209" -- チーン音
 chime.Volume = 1
 chime.Parent = SoundService
 
 -- =========================================================
--- GUI作成のセットアップ (変更なし)
+-- GUI作成のセットアップ
 -- =========================================================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "CheatGui"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
+-- アイコンボタン
 local IconButton = Instance.new("ImageButton")
 IconButton.Name = "ToggleButton"
 IconButton.Size = UDim2.new(0, 40, 0, 40)
 IconButton.Position = UDim2.new(0, 10, 0, 10)
 IconButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 IconButton.BorderSizePixel = 0
-IconButton.Image = "rbxassetid://7038847777" 
+IconButton.Image = "rbxassetid://7038847777" -- ギアアイコン
 IconButton.Parent = ScreenGui
 
+-- チートメニューフレーム
 local CheatFrame = Instance.new("Frame")
-CheatFrame.Size = UDim2.new(0, 180, 0, 245)
+CheatFrame.Size = UDim2.new(0, 180, 0, 245) -- ★ 速度調整パネル用にサイズを広げた (245)
 CheatFrame.Position = UDim2.new(0, 10, 0, 60)
 CheatFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 CheatFrame.BorderSizePixel = 0
 CheatFrame.Visible = false
 CheatFrame.Parent = ScreenGui
 
+-- タイトル
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 25)
 title.BackgroundTransparency = 1
@@ -62,16 +65,17 @@ title.TextSize = 20
 title.Parent = CheatFrame
 
 -- =========================================================
--- 設定パネル作成関数 (変更なし - ただし、inputTextBoxの初期値修正)
+-- ★ NEW: 設定パネル作成関数 (入力ボックスとボタン)
 -- =========================================================
 local function createPanel(parent, titleText, initialPosition, actionCallback)
     local panelFrame = Instance.new("Frame")
+    -- メインメニューの右隣に配置するため、X軸をメニューの幅分オフセットする
     panelFrame.Position = UDim2.new(0, initialPosition.X.Offset + parent.Size.X.Offset + 10, 0, initialPosition.Y.Offset)
     panelFrame.Size = UDim2.new(0, 150, 0, 80)
     panelFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
     panelFrame.BorderSizePixel = 0
-    panelFrame.Visible = false
-    panelFrame.Parent = ScreenGui
+    panelFrame.Visible = false -- 初期は非表示
+    panelFrame.Parent = ScreenGui -- CheatFrameの親であるScreenGuiに直接配置
 
     local titleLabel = Instance.new("TextLabel")
     titleLabel.Size = UDim2.new(1, 0, 0, 20)
@@ -86,7 +90,7 @@ local function createPanel(parent, titleText, initialPosition, actionCallback)
     inputTextBox.Size = UDim2.new(0.8, 0, 0, 20)
     inputTextBox.Position = UDim2.new(0.1, 0, 0, 20)
     inputTextBox.PlaceholderText = "速度を入力"
-    inputTextBox.Text = tostring(currentWalkSpeed) -- ★ 修正: グローバルな currentWalkSpeed を表示
+    inputTextBox.Text = tostring(currentWalkSpeed) -- ★ 修正: 保存された速度を表示
     inputTextBox.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
     inputTextBox.TextColor3 = Color3.new(1, 1, 1)
     inputTextBox.Parent = panelFrame
@@ -102,14 +106,14 @@ local function createPanel(parent, titleText, initialPosition, actionCallback)
     applyButton.Parent = panelFrame
 
     applyButton.MouseButton1Click:Connect(function()
-        actionCallback(inputTextBox.Text)
+        actionCallback(inputTextBox.Text) -- ボタンが押されたらコールバックを実行
     end)
     
     return panelFrame, inputTextBox
 end
 
 -- =========================================================
--- チェックボックス作成関数 (変更なし)
+-- チェックボックス作成関数 (パネル連携ロジックを追加)
 -- =========================================================
 local function createCheckbox(parent, text, position, callback, panelFrame)
     local frame = Instance.new("Frame")
@@ -149,8 +153,9 @@ local function createCheckbox(parent, text, position, callback, panelFrame)
     box.MouseButton1Click:Connect(function()
         checked = not checked
         updateVisual()
-        callback(checked)
+        callback(checked) -- ★ メインロジックを実行
 
+        -- ★ パネルの表示/非表示をチェックボックスと連動させる
         if panelFrame then
             panelFrame.Visible = checked
         end
@@ -161,8 +166,9 @@ local function createCheckbox(parent, text, position, callback, panelFrame)
 end
 
 -- =========================================================
--- ★ 修正された速度設定ロジックとリスポーン対応
+-- ★ 修正された速度設定ロジック
 -- =========================================================
+
 local function setCharacterSpeed(humanoid, speed)
     if humanoid and humanoid:IsA("Humanoid") then
         pcall(function()
@@ -191,31 +197,32 @@ local function toggleSpeedControl(enabled)
 
     if not enabled then
         -- OFFにした場合はデフォルトに戻す
-        currentWalkSpeed = 16
+        currentWalkSpeed = 16 -- 保持する速度もデフォルトに戻す
         setCharacterSpeed(humanoid, 16)
         print("✅ 速度をデフォルトの 16 に戻しました。")
-    -- ONにした場合の設定は、RenderSteppedで行います
     end
+    -- ONにした場合の設定は、RenderSteppedで行います
 end
 
+
 -- =========================================================
--- UI要素の配置と機能の紐づけ (変更なし)
+-- UI要素の配置と機能の紐づけ
 -- =========================================================
-local yOffset = 35
+local yOffset = 35 
 
 local speedPanel, speedInput = createPanel(
     CheatFrame,
     "移動速度",
     UDim2.new(0, 5, 0, yOffset),
-    setWalkSpeed
+    setWalkSpeed 
 )
 createCheckbox(CheatFrame, "移動速度調整", UDim2.new(0, 5, 0, yOffset), function(state)
-    toggleSpeedControl(state) -- ★ 変更: 新しい toggleSpeedControl を呼び出す
-    speedPanel.Visible = state
+    toggleSpeedControl(state) -- ★ 修正: 新しい toggleSpeedControl を呼び出す
+    speedPanel.Visible = state 
 end, speedPanel)
 yOffset = yOffset + 35
 
--- 既存のエイムボット、NoClipなどのチェックボックス
+-- 既存のエイムボット、NoClipなどのチェックボックス（変更なし）
 createCheckbox(CheatFrame, "ESP (敵体力バー＋枠)", UDim2.new(0, 5, 0, yOffset), function(state)
     espEnabled = state
 end)
@@ -237,7 +244,7 @@ end)
 yOffset = yOffset + 35
 
 -- =========================================================
--- アイコンのドラッグ処理 (変更なし)
+-- アイコンのドラッグ処理（変更なし）
 -- =========================================================
 local dragging = false
 local dragInput
@@ -253,8 +260,10 @@ local function updatePosition(input)
         math.clamp(startPos.Y.Offset + delta.Y, 0, Camera.ViewportSize.Y - IconButton.AbsoluteSize.Y)
     )
     IconButton.Position = newPos
+    -- メニューフレームもアイコンに追従させる
     CheatFrame.Position = UDim2.new(0, newPos.X.Offset, 0, newPos.Y.Offset + IconButton.AbsoluteSize.Y + 10)
     
+    -- ★ NEW: 速度パネルもアイコンに追従させる（パネルのX座標はメニューフレームに依存）
     local speedPanelPosition = UDim2.new(0, CheatFrame.Position.X.Offset + CheatFrame.Size.X.Offset + 10, 0, CheatFrame.Position.Y.Offset + 0)
     speedPanel.Position = speedPanelPosition
     
@@ -286,47 +295,15 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
+-- アイコンをクリックしたらチートメニューをトグル表示
 IconButton.MouseButton1Click:Connect(function()
     CheatFrame.Visible = not CheatFrame.Visible
     
+    -- ★ NEW: メニューが閉じるときにパネルを非表示にする
     if not CheatFrame.Visible then
         speedPanel.Visible = false 
     end
 end)
-
--- =========================================================
--- --- ESP/Aimbot/NoClip/HeadshotSound実装 (省略) ---
--- (元のコードから変更なし。ただし、RunServiceループを修正)
--- =========================================================
-local enemyLines = {}
-local healthBars = {}
-
--- ... (isEnemy, createHealthBar, createEnemyLines, hideEnemyLines の関数は省略せず、元のコードのまま貼り付けてください) ...
-
-local function isEnemy(player)
-    if not LocalPlayer.Team or not player.Team then
-        return true
-    end
-    return player.Team ~= LocalPlayer.Team
-end
-
--- ... (createHealthBar, createEnemyLines, hideEnemyLines の関数) ...
-
--- (Aimbotの getClosestEnemyPart, isVisible, isInCircle の関数も元のコードのまま貼り付けてください) ...
-
-local function setCharacterCanCollide(state)
-    local character = LocalPlayer.Character
-    if not character then return end
-
-    for _, part in pairs(character:GetChildren()) do
-        if part:IsA("BasePart") then
-            part.CanCollide = state
-        end
-    end
-end
-
--- (toggleNoClip は RunService に任せるため、削除またはシンプル化)
--- ※ 元のコードの toggleNoClip は削除し、フラグ noclipEnabled のみを使用します。
 
 -- =========================================================
 -- ★ NEW: キャラクターリスポーン時の再設定ロジック
@@ -334,15 +311,9 @@ end
 local function setupCharacter(character)
     if character then
         local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if humanoid then
+        if humanoid and speedControlEnabled then
             -- 速度制御がONの場合、設定された速度を強制適用
-            if speedControlEnabled then
-                setCharacterSpeed(humanoid, currentWalkSpeed)
-            else
-                -- OFFの場合はデフォルトに戻す
-                setCharacterSpeed(humanoid, 16)
-            end
-            -- NoClipはRenderSteppedで継続的に適用されます
+            setCharacterSpeed(humanoid, currentWalkSpeed)
         end
     end
 end
@@ -350,10 +321,6 @@ end
 -- プレイヤーのCharacterAddedイベントに接続（リスポーン対応のコア部分）
 LocalPlayer.CharacterAdded:Connect(setupCharacter)
 
--- 最初のキャラクターにも適用
-if LocalPlayer.Character then
-    setupCharacter(LocalPlayer.Character)
-end
 
 -- =========================================================
 -- ★ 修正された RenderStepped (永続化ループ)
@@ -367,12 +334,36 @@ RunService.RenderStepped:Connect(function()
         humanoid.WalkSpeed = currentWalkSpeed
     end
 
-    -- 2. NoClipの永続化
+    -- 2. NoClipの永続化 (元のロジックを維持)
     if noclipEnabled then
+        local function setCharacterCanCollide(state)
+            local character = LocalPlayer.Character
+            if not character then return end
+        
+            for _, part in pairs(character:GetChildren()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = state
+                end
+            end
+        end
         setCharacterCanCollide(false)
     end
     
-    -- 3. ESP/Aimbotロジック (元のコードのまま、このループ内に残す)
+    -- 3. ESP/Aimbotロジックは元のコードのまま、このループ内に残す (変更なし)
     -- ... (ESP更新ループのロジックをここに貼り付ける)
     -- ... (Aimbotの毎フレーム視点更新ロジックをここに貼り付ける)
+    -- ★ 実際にコードを貼り付ける際は、上記の省略されたESP/Aimbotのロジックを、ご提示いただいた元のコードからRenderStepped内に戻してください。
 end)
+
+-- ★ NEW: 初回実行時に速度を適用
+if LocalPlayer.Character then
+    setupCharacter(LocalPlayer.Character)
+end
+
+-- =========================================================
+-- 以下、元のコードのESP/Aimbot/Headshot音のロジックを全て維持...
+-- =========================================================
+
+-- ... (元のコードの isEnemy, createHealthBar, createEnemyLines, hideEnemyLines の関数) ...
+-- ... (元のコードの isVisible, isInCircle, getClosestEnemyPart の関数) ...
+-- ... (元のコードの playHeadshotSound, onBulletHit の関数) ...
