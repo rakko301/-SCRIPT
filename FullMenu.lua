@@ -5,6 +5,9 @@ local SoundService = game:GetService("SoundService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
+-- ★ 追加: GUIの作成前に少し待機し、PlayerGuiが確実にロードされるのを待つ
+wait(0.5) 
+
 -- =========================================================
 -- チート有効/無効フラグ
 -- =========================================================
@@ -13,13 +16,13 @@ local aimbotEnabled = false
 local noclipEnabled = false
 local headshotSoundEnabled = false 
 
-local speedControlEnabled = false -- ★ NEW: 速度制御フラグ
-local jumpControlEnabled = false  -- (ジャンプ力調整は不要だが、UIロジックの汎用性のため残す)
+local speedControlEnabled = false
+local jumpControlEnabled = false
 
 -- チーン音の用意
 local chime = Instance.new("Sound")
 chime.Name = "HeadshotSound"
-chime.SoundId = "rbxassetid://7128958209" -- チーン音
+chime.SoundId = "rbxassetid://7128958209"
 chime.Volume = 1
 chime.Parent = SoundService
 
@@ -35,16 +38,16 @@ ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 local IconButton = Instance.new("ImageButton")
 IconButton.Name = "ToggleButton"
 IconButton.Size = UDim2.new(0, 40, 0, 40)
-IconButton.Position = UDim2.new(0, 10, 0, 10)
+IconButton.Position = UDim2.new(0.01, 0, 0.05, 0) -- ★ 修正: 画面左上から確実に表示される位置に設定
 IconButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 IconButton.BorderSizePixel = 0
-IconButton.Image = "rbxassetid://7038847777" -- ギアアイコン
+IconButton.Image = "rbxassetid://7038847777" 
 IconButton.Parent = ScreenGui
 
 -- チートメニューフレーム
 local CheatFrame = Instance.new("Frame")
-CheatFrame.Size = UDim2.new(0, 180, 0, 245) -- ★ 速度調整パネル用にサイズを広げた (245)
-CheatFrame.Position = UDim2.new(0, 10, 0, 60)
+CheatFrame.Size = UDim2.new(0, 180, 0, 245) 
+CheatFrame.Position = UDim2.new(0, IconButton.Position.X.Offset, 0, IconButton.Position.Y.Offset + IconButton.Size.Y.Offset + 10) -- 初期位置をアイコンに合わせるためPositionはアイコン追従ロジックに頼る
 CheatFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 CheatFrame.BorderSizePixel = 0
 CheatFrame.Visible = false
@@ -188,23 +191,25 @@ end
 -- =========================================================
 -- UI要素の配置と機能の紐づけ
 -- =========================================================
-local yOffset = 35 -- 最初のチェックボックスのY座標オフセット
+local yOffset = 35 
 
 -- ★ NEW: 速度設定パネルの作成と紐づけ
 local speedPanel, speedInput = createPanel(
     CheatFrame,
     "移動速度",
     UDim2.new(0, 5, 0, yOffset),
-    setWalkSpeed -- 適用ボタンが押されたら setWalkSpeed を実行
+    setWalkSpeed 
 )
 createCheckbox(CheatFrame, "移動速度調整", UDim2.new(0, 5, 0, yOffset), function(state)
     speedControlEnabled = state
-    speedPanel.Visible = state -- パネルをON/OFF
+    speedPanel.Visible = state
+    if not state then
+        setWalkSpeed("16") -- OFFにしたらデフォルト速度に戻す
+    end
 end, speedPanel)
 yOffset = yOffset + 35
 
--- 既存のエイムボット、NoClipなどのチェックボックス（元のコードのyOffsetを調整）
--- 元のコードのチェックボックスのY座標を調整して、速度調整パネルの下に配置する
+-- 既存のエイムボット、NoClipなどのチェックボックス
 
 createCheckbox(CheatFrame, "ESP (敵体力バー＋枠)", UDim2.new(0, 5, 0, yOffset), function(state)
     espEnabled = state
@@ -217,7 +222,7 @@ end)
 yOffset = yOffset + 35
 
 createCheckbox(CheatFrame, "NoClip (透明パーツの当たり判定解除)", UDim2.new(0, 5, 0, yOffset), function(state)
-    toggleNoClip(state) -- ★ ここを修正
+    toggleNoClip(state) 
 end)
 yOffset = yOffset + 35
 
@@ -250,7 +255,6 @@ local function updatePosition(input)
     local speedPanelPosition = UDim2.new(0, CheatFrame.Position.X.Offset + CheatFrame.Size.X.Offset + 10, 0, CheatFrame.Position.Y.Offset + 0)
     speedPanel.Position = speedPanelPosition
     
-    -- (他のカスタムパネルがある場合もここに追加して追従させます)
 end
 
 IconButton.InputBegan:Connect(function(input)
@@ -286,7 +290,6 @@ IconButton.MouseButton1Click:Connect(function()
     -- ★ NEW: メニューが閉じるときにパネルを非表示にする
     if not CheatFrame.Visible then
         speedPanel.Visible = false 
-        -- (他のパネルも同様に非表示にする)
     end
 end)
 
@@ -464,16 +467,16 @@ end)
 -- =========================================================
 -- --- エイムボット実装 --- (元のコードから変更なし)
 -- =========================================================
-local Drawing = Drawing -- Drawing API が使える前提
+local Drawing = Drawing 
 
 -- 円の設定
-local circleRadius = 100 -- 円を少し大きく
+local circleRadius = 100 
 local centerX, centerY = Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2
 
 -- 円を描画
 local circleDrawing = Drawing.new("Circle")
 circleDrawing.Radius = circleRadius
-circleDrawing.Color = Color3.fromRGB(255, 255, 255) -- 白に修正
+circleDrawing.Color = Color3.fromRGB(255, 255, 255) 
 circleDrawing.Thickness = 2
 circleDrawing.Filled = false
 circleDrawing.Position = Vector2.new(centerX, centerY)
@@ -546,7 +549,7 @@ RunService.RenderStepped:Connect(function()
     -- 画面サイズが変わった場合に円の位置を更新
     centerX, centerY = Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2
     circleDrawing.Position = Vector2.new(centerX, centerY)
-    circleDrawing.Visible = aimbotEnabled -- チェック状態に応じて表示
+    circleDrawing.Visible = aimbotEnabled 
 
     if aimbotEnabled then
         local target = getClosestEnemyPart()
@@ -571,12 +574,12 @@ local function setCharacterCanCollide(state, parts)
         if part:IsA("BasePart") then
             if state == false then
                 -- ONにする際は即時変更
-                defaultCanCollide[part] = part.CanCollide -- 元の値を保存
+                defaultCanCollide[part] = part.CanCollide 
                 part.CanCollide = false
             elseif state == true then
                 -- OFFにする際は元の値に戻す
                 part.CanCollide = defaultCanCollide[part] ~= nil and defaultCanCollide[part] or true
-                defaultCanCollide[part] = nil -- 保存した値をクリア
+                defaultCanCollide[part] = nil 
             end
         end
     end
